@@ -3,6 +3,7 @@ const router=express.Router();
 const dbconfig=require('../db');
 const bcrypt = require('bcrypt');
 const jwt = require("jsonwebtoken");
+const auth=require ("../middleware/auth")
 
 router.post("/login", async(req,res)=>{   
     const email = req.body.email;
@@ -18,10 +19,14 @@ router.post("/login", async(req,res)=>{
             else{
                 const hasheddPassword=result[0].password;
                 if(await bcrypt.compare(password, hasheddPassword)){
-                    // const accessToken = generateAccessToken ({user: req.body.email});
-                    // console.log(accessToken);
-                    // const refreshToken = generateRefreshToken ({user: req.body.email});
-                    // res.json ({accessToken: accessToken, refreshToken: refreshToken});
+                    const token =jwt.sign({email:result[0].email},"apiKeyOwner");
+                    const email= result[0].email;
+                    dbconfig.query(
+                        "UPDATE employee_list SET token="+token+" WHERE email='"+result[0].email+"';"
+                    );
+                    return res.status(200).send({
+                        token,
+                    });
                 }
                 else{
                     console.log("password incorrect");
@@ -32,9 +37,10 @@ router.post("/login", async(req,res)=>{
     )
     }
 });
-router.get("/user",async (req,res)=>{
-    dbconfig.query(
-        "SELECT * FROM employee_list",(err,result)=>{
+router.get("/user",auth,async (req,res)=>{
+    const email = req.body.email;
+    dbconfig.query(       
+        "SELECT name, employee_id,email FROM employee_list WHERE email=",[email],(err,result)=>{
             if(err){
                 return res.status(400).send(err);
             }
